@@ -8,6 +8,9 @@ np.set_printoptions(threshold=np.inf)
 
 # --------------------载入数据---------------------
 
+# 定义数据量多少
+data_size = 10000
+
 # ----------------1.位置信息--------------
 
 # 将数据转化成载入并转化成numpy
@@ -82,13 +85,13 @@ print(data_odom_extratct.shape)
 
 # ----------------去数据前2000行--------------
 
-data_transformation_2000 = data_transformation_extratct[ 1:2001 , 1:8] # 第零行是标签，取两千个数据 
+data_transformation_2000 = data_transformation_extratct[ 1:data_size+1 , 1:8] # 第零行是标签，取两千个数据 
 
 print("data_transformation_2000")
 #print(data_transformation_2000[0:5,:])
 print(data_transformation_2000.shape)
 
-data_odom_2000 = data_odom_extratct[ 1:2001 , 1:7] # 第零行是标签，取两千个数据
+data_odom_2000 = data_odom_extratct[ 1:data_size+1 , 1:7] # 第零行是标签，取两千个数据
 
 print("data_odom_2000.size")
 #print(data_odom_2000[0:5,:])
@@ -96,9 +99,9 @@ print(data_odom_2000.shape)
 
 # ----------------生成指定cmd_vel数据--------------
 
-data_cmd_vel_2000 = np.zeros((2000,6))
+data_cmd_vel_2000 = np.zeros((data_size,6))
 
-data_cmd_vel_2000[:,0]=0.25
+data_cmd_vel_2000[:,0]=0.20
 data_cmd_vel_2000[:,5]=0.05
 
 #print(data_cmd_vel_2000)
@@ -107,46 +110,64 @@ data_cmd_vel_2000[:,5]=0.05
 
 data_input = np.append(data_transformation_2000,data_odom_2000, axis=1).astype(np.float)
 
-data_input = 10000*np.append(data_input,data_cmd_vel_2000, axis=1)# tensor避免数据损失
+data_input = np.append(data_input,data_cmd_vel_2000, axis=1)# tensor避免数据损失
 
 print("data_input")
-print(data_input[1994:2000,:])
+print(data_input[data_size-6:data_size,:])
 print(data_input.shape)
 
 # ----------------生成输出数据--------------
 
-data_output = 10000*data_transformation_extratct[ 2:2002 , 1:8].astype(np.float) # tensor避免数据损失
+data_output = data_transformation_extratct[ 2:data_size+2 , 1:8].astype(np.float) # tensor避免数据损失
 
 print("data_output")
-print(data_output[1994:2000,:]) 
-print(data_output[0,0])
+print(data_output[data_size-6:data_size,:]) 
 
+
+## ----------------数据预处理：归一化--------------
+
+#data_input -= np.mean(data_input, axis = 0) # zero-center
+#data_output -= np.mean(data_output, axis = 0) # zero-center
+
+#data_input /= np.std(data_input, axis = 0) # normalize
+#data_output /= np.std(data_output, axis = 0) # normalize
+
+#print("data_input预处理后")
+#print(data_input[data_size-6:data_size,:])
+#print(data_input.shape)
+
+#print("data_output预处理后")
+#print(data_output[data_size-6:data_size,:]) 
 
 
 # ------------将numpy转化成tensor-----------
 
 data_input_torch = torch.from_numpy(data_input)
-data_input_float = data_input_torch.float()
+data_input_float = data_input_torch.float() # 转化成浮点数
+
 data_output_torch = torch.from_numpy(data_output)
-data_output_float = data_output_torch.float()
+data_output_float = data_output_torch.float() # 转化成浮点数 
 
 print("data_input_torch")
-print(data_input_torch[1994:2000,:]) 
+print(data_input_torch[data_size-6:data_size,:]) 
 print(data_input_torch.shape)
 
 
 print("data_output")
-print(data_output_torch[1994:2000,:]) 
+print(data_output_torch[data_size-6:data_size,:]) 
 print(data_output_torch.shape)
 
 
 #----------------定义相关网络-----------------
 
 #定义迭代次数
-times = 2000
+times = data_size
 
 # 生成随机输出变量
 data_plot = torch.zeros(times,7) #设定了一千条数据
+
+# 生成损失函数误差变量
+loss_plot = torch.zeros(times,7) #设定了一千条数据
 
 # 首先，定义所有层属性
 class Net(torch.nn.Module):  # 继承 torch 的 Module
@@ -159,6 +180,7 @@ class Net(torch.nn.Module):  # 继承 torch 的 Module
         self.fc2 = torch.nn.Linear(n_hidden, n_hidden)   # 第二个全连接层
         self.fc3 = torch.nn.Linear(n_hidden, n_hidden)   # 第三个全连接层
         self.fc4 = torch.nn.Linear(n_hidden, n_output)   # 第四个全连接层
+        self.dropout = torch.nn.Dropout(p=0.5)
     
     #定义前向网络
     def forward(self, x):
@@ -166,30 +188,39 @@ class Net(torch.nn.Module):  # 继承 torch 的 Module
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = self.fc4(x)
+        x = self.dropout(x)
         return x
 
-net = Net(n_feature=19, n_hidden=128, n_output=7)
+net = Net(n_feature=19, n_hidden=128, n_output=7) 
 
 print(net)
+
 
 #----------------定义优化方法&定义损失函数-----------------
 
 #使用“随机梯度下降法”进行参数优化
-# optimizer = torch.optim.SGD(net.parameters(), lr=0.1)  # 传入 net 的所有参数, 学习率
+# optimizer = torch.optim.SGD(net.parameters(), lr=0.0001)  # 传入 net 的所有参数, 学习率
 
 #使用“ADAM”进行参数优化
-optimizer = torch.optim.Adam(net.parameters(), lr=0.0003) # 传入 net 的所有参数, 学习率
+optimizer = torch.optim.Adam(net.parameters(), lr=0.0001) # 传入 net 的所有参数, 学习率
 
 #定义损失函数，计算均方差
-#loss_func = torch.nn.MSELoss()      # 预测值和真实值的误差计算公式 (均方差)
-loss_func = torch.nn.L1Loss()      # 预测值和真实值的误差计算公式 (均方差)
+loss_func = torch.nn.MSELoss()      # 预测值和真实值的误差计算公式 (均方差)
+#loss_func = torch.nn.L1Loss()      # 预测值和真实值的误差计算公式 (均方差)
+
+#----------------使用cuda进行GPU计算-----------------
+
+net.cuda()
+loss_func.cuda()
 
 #----------------具体训练过程-----------------
 for t in range(times):
 
-    prediction = net( data_input_float[t,:] )     # input x and predict based on x
+    prediction = net( data_input_float[t,:].cuda() )     # input x and predict based on x
 
-    loss = loss_func(prediction, data_output_float[t,:])     # must be (1. nn output, 2. target)
+    loss = loss_func(prediction, data_output_float[t,:].cuda())     # must be (1. nn output, 2. target)
+
+    loss_plot[t,:] = loss # 将损失函数赋值给绘画变量
 
     optimizer.zero_grad()   # clear gradients for next train
     loss.backward()         # backpropagation, compute gradients
@@ -198,7 +229,7 @@ for t in range(times):
 
     #计算误差百分数,并储存在data_plot当中
     if t % 5 == 0:
-        percent = 100*(prediction - data_output_float[t,:])/data_output_float[t,:]
+        percent = 100*(prediction - data_output_float[t,:].cuda())/data_output_float[t,:].cuda()
 
         data_plot[t,:] = percent
 
@@ -211,35 +242,79 @@ for t in range(times):
         #print("\nprediction - actually")
         #print(prediction - y[:,t])
 
-        print("\npercent")
-        print(percent)
+        #print("\npercent")
+        #print(percent)
 
 #计算3个输出的平均值（把每列加起来）
 
 #将数据从tensor转化成numpy
 data_plot_numpy = data_plot.detach().numpy()
 
+print("data_plot_numpy")
+print(data_plot_numpy[1:20,:])
+print(data_plot_numpy.shape)
+
+print("data_plot_numpy转置")
+print(data_plot_numpy.T[:,1:20])
+print(data_plot_numpy.T.shape)
+
+
 #取每个元素的绝对值
 data_plot_numpy_abs = np.abs(data_plot_numpy.T) #需要进行转置才能得到相关数据
 
 #调用sum函数，将每列数据加起来，求误差的平均数
-average = np.sum(data_plot_numpy_abs, axis=0)/7 #要除3，表示加起来求平均
+average = np.sum(data_plot_numpy_abs[0:6], axis=0)/7 #要除3，表示加起来求平均
 
 print("\naverage")
 print(average)
+
 
 #将误差平均值可视化
 X = np.linspace(1, times, times, endpoint=True)
 
 plt.xlim(0, times)#设置XY轴的显示范围
-plt.ylim(0, 6)
+plt.ylim(0, 200)
 
 plt.plot(X,average)
 plt.show()
 
+##将X、Y、Z误差可视化
+#for num in range (0,7):
+#    X = np.linspace(1, times, times, endpoint=True)
+#    plt.plot(X,data_plot[:,num].detach().numpy())
 
-#将X、Y、Z误差可视化
-for num in range (0,7):
-    X = np.linspace(1, times, times, endpoint=True)
-    plt.plot(X,data_plot[:,num].detach().numpy())
-    plt.show()
+#    #plt.xlim(1, times)#设置XY轴的显示范围
+#    #plt.ylim(0, 100)
+
+#    plt.show()
+
+#----------------将loss函数可视化-----------------
+
+
+#将数据从tensor转化成numpy
+loss_plot_numpy = loss_plot.detach().numpy()
+
+print("data_plot_numpy")
+print(loss_plot_numpy[1:20,:])
+print(loss_plot_numpy.shape)
+
+print("loss_plot_numpy转置")
+print(loss_plot_numpy.T[:,1:200])
+print(loss_plot_numpy.T.shape)
+
+#取每个元素的绝对值
+loss_plot_numpy_abs = np.abs(loss_plot_numpy.T) #需要进行转置才能得到相关数据
+
+#调用sum函数，将每列数据加起来，求误差的平均数
+average = np.sum(loss_plot_numpy_abs, axis=0)/7 #要除3，表示加起来求平均
+
+
+#将误差平均值可视化
+X = np.linspace(1, times, times, endpoint=True)
+
+plt.xlim(0, times)#设置XY轴的显示范围
+plt.ylim(0, 200)
+
+plt.plot(X,average)
+plt.show()
+
