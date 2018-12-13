@@ -7,6 +7,22 @@ np.set_printoptions(threshold=np.inf)
 
 import torch.utils.data as Data
 
+def fourier_transformation (input_data,rows,frequency):
+   
+    #将输入数据进行傅里叶变换
+    transformed = np.fft.fft(input_data[:,rows])
+
+    #将输入数据指定频率以上滤除
+    transformed [ np.real(transformed) < frequency] = 0
+
+    #将数据进行傅里叶反变换
+    transformed_back = np.fft.ifft(transformed)
+
+    #将反变换之后的数据重新
+    input_data [:,rows] = transformed_back
+
+    #返回原始数据
+    return input_data
 
 if __name__ == '__main__':
 
@@ -15,31 +31,7 @@ if __name__ == '__main__':
     ## --------------------载入数据---------------------
 
     # 定义数据量多少
-    data_size = 10000
-
-    ## ----------------1.位置信息--------------
-
-    ## 将数据转化成载入并转化成numpy
-    #data_transformation = np.loadtxt('tf.txt',dtype= 'str',skiprows=0,delimiter=",")
-
-
-    ##只筛选特定的行
-    ##data_transformation_extratct = data_transformation[1:20, [0,5,6,7,8,9,10,11]]
-    #data_transformation_extratct = data_transformation[ : , [0,5,6,7,8,9,10,11]]
-
-    ## 调试使用
-    #print(data_transformation_extratct[0:20])
-    ##print(data_transformation_extratct.size)
-    #print(data_transformation_extratct.shape)
-
-    ##筛选 xyz 和两个角速度
-    #data_transformation_extratct = data_transformation_extratct[ : , [1,2,6]]
-
-    ## 调试使用
-    #print(data_transformation_extratct[0:20])
-    ##print(data_transformation_extratct.size)
-    #print(data_transformation_extratct.shape)
-
+    data_size = 15000
 
     # ----------------2.速度信息--------------
 
@@ -54,40 +46,11 @@ if __name__ == '__main__':
     # 针对平面问题的数据筛选
 
     #只筛选特定的行
-    data_odom_extratct = data_odom_extratct[ : , [1,2,6,8,9,13]]
+    
+    #data_odom_extratct = data_odom_extratct[ : , [1,2,6,8,9,13]]
 
+    data_odom_extratct = data_odom_extratct[ : , [1,2,6,8,13]]
 
-    ### ----------------3.输入信息--------------
-
-    ### 将数据转化成载入并转化成numpy
-    ##data_cmd_vel = np.loadtxt('cmd_vel.txt',dtype= 'str',skiprows=0,delimiter=",")
-
-    ###筛选特定的行
-    ###data_cmd_vel = data_cmd_vel[1:20,:]
-    ##data_cmd_vel = data_cmd_vel[:,:]
-
-    ### 调试使用
-    ###print(data_cmd_vel)
-    ##print(data_cmd_vel.size)
-    ##print(data_cmd_vel.shape)
-
-    ## 可以不用筛选特定的行
-
-    ### ----------------4.时间信息--------------
-
-    ### 将数据转化成载入并转化成numpy
-    ##data_clock = np.loadtxt('clock.txt',dtype= 'str',skiprows=0,delimiter=",")
-
-    ###筛选特定的行
-    ###data_clock = data_clock[1:20,:]
-    ##data_clock = data_clock[:,:]
-
-    ### 调试使用
-    ###print(data_clock)
-    ##print(data_clock.size)
-    ##print(data_clock.shape)
-
-    ### 可以不用筛选特定的行
 
 
     # --------------------将数据拼接在一个numpy当中---------------------
@@ -98,22 +61,6 @@ if __name__ == '__main__':
     print("data_odom_extratct_data_size")
     print(data_odom_extratct_data_size[0:20,:])
 
-
-
-    ## ----------------去数据前2000行--------------
-
-    #data_transformation_2000 = data_transformation_extratct[ 1:data_size+1 , 1:8] # 第零行是标签，取两千个数据 
-
-    #print("data_transformation_2000")
-    ##print(data_transformation_2000[0:5,:])
-    #print(data_transformation_2000.shape)
-
-    #data_odom_2000 = data_odom_extratct[ 1:data_size+1 , 1:7] # 第零行是标签，取两千个数据
-
-    #print("data_odom_2000.size")
-    ##print(data_odom_2000[0:5,:])
-    #print(data_odom_2000.shape)
-
     #生成输入数据 
     data_input = data_odom_extratct_data_size.astype(np.float)
 
@@ -122,61 +69,27 @@ if __name__ == '__main__':
 
     # 定义乘数
     data_input[:, 2] = data_input[:, 2] *10
-    data_input[:, 3] = data_input[:, 3] *1000
-    data_input[:, 4] = data_input[:, 4] *1000
-    data_input[:, 5] = data_input[:, 5] *1000
+    #data_input[:, 3] = data_input[:, 3] *1000
+    data_input[:, 4] = data_input[:, 4] *10
+    #data_input[:, 5] = data_input[:, 5] *1000
 
-    data_input = 10*data_input
+    data_input = data_input
 
     # 生成输出数据 
-    data_output = data_odom_extratct[12:data_size+12 ,[0,1,2] ].astype(np.float)
+    data_output = data_odom_extratct[2:data_size+2 ,[0,1,2] ].astype(np.float)
 
     # 定义乘数
     data_output[:, 2] = data_output[:, 2] *10
 
-    data_output = 10*data_output
+    data_output = data_output
 
-    ### ----------------生成指定cmd_vel数据--------------
+    # ------------将数据进行傅里叶变换-----------
+    #data_input = fourier_transformation(data_input,3,20)
+    #data_input = fourier_transformation(data_input,4,20)
 
-    ##data_cmd_vel_2000 = np.zeros((data_size,6))
-
-    ##data_cmd_vel_2000[:,0]=0.20
-    ##data_cmd_vel_2000[:,5]=0.05
-
-    ###print(data_cmd_vel_2000)
-
-    ### 将数据拼接在一起
-
-    ##data_input = np.append(data_transformation_2000,data_odom_2000, axis=1).astype(np.float)
-
-    ##data_input = np.append(data_input,data_cmd_vel_2000, axis=1)# tensor避免数据损失
-
-    ##print("data_input")
-    ##print(data_input[data_size-6:data_size,:])
-    ##print(data_input.shape)
-
-    ### ----------------生成输出数据--------------
-
-    ##data_output = data_transformation_extratct[ 2:data_size+2 , 1:8].astype(np.float) # tensor避免数据损失
-
-    ##print("data_output")
-    ##print(data_output[data_size-6:data_size,:]) 
-
-
-    #### ----------------数据预处理：归一化--------------
-
-    ##data_input -= np.mean(data_input, axis = 0) # zero-center
-    ##data_output -= np.mean(data_output, axis = 0) # zero-center
-
-    ##data_input /= np.std(data_input, axis = 0) # normalize
-    ##data_output /= np.std(data_output, axis = 0) # normalize
-
-    ###print("data_input预处理后")
-    ###print(data_input[data_size-6:data_size,:])
-    ###print(data_input.shape)
-
-    ###print("data_output预处理后")
-    ###print(data_output[data_size-6:data_size,:]) 
+    #X = np.linspace(1, data_size, data_size, endpoint=True)
+    #plt.plot(X,data_input[:,4])
+    #plt.show()
 
 
     # ------------将numpy转化成tensor-----------
@@ -198,15 +111,13 @@ if __name__ == '__main__':
 
     # ------------进行批训练-----------
 
-    BATCH_SIZE = 30
+    BATCH_SIZE = 2
 
     # 定义数据库 （输入输出分别是之前的输入输出）
     dataset = Data.TensorDataset(data_input_float, data_output_float) 
 
     # 定义数据加载器
     loader = Data.DataLoader(dataset = dataset, batch_size = BATCH_SIZE, shuffle = True, num_workers = 2)
-
-
 
 
     #----------------定义相关网络-----------------
@@ -231,7 +142,7 @@ if __name__ == '__main__':
             self.fc2 = torch.nn.Linear(n_hidden, n_hidden)   # 第二个全连接层
             self.fc3 = torch.nn.Linear(n_hidden, n_hidden)   # 第三个全连接层
             self.fc4 = torch.nn.Linear(n_hidden, n_output)   # 第四个全连接层
-            self.dropout = torch.nn.Dropout(p=0.35)
+            #self.dropout = torch.nn.Dropout(p=0.5)
     
         #定义前向网络
         def forward(self, x):
@@ -239,11 +150,19 @@ if __name__ == '__main__':
             x = F.relu(self.fc2(x))
             x = F.relu(self.fc3(x))
             x = self.fc4(x)
-            x = self.dropout(x)
+            #x = self.dropout(x)
             return x
 
+        # #定义前向网络
+        #def forward(self, x):
+        #    x = F.sigmoid(self.fc1(x))
+        #    x = F.sigmoid(self.fc2(x))
+        #    x = F.sigmoid(self.fc3(x))
+        #    x = self.fc4(x)
+        #    x = self.dropout(x)
+        #    return x
 
-    net = Net(n_feature=6, n_hidden=9, n_output=3) 
+    net = Net(n_feature=5, n_hidden=128, n_output=3) 
 
     print(net)
 
@@ -254,7 +173,7 @@ if __name__ == '__main__':
     # optimizer = torch.optim.SGD(net.parameters(), lr=0.0001)  # 传入 net 的所有参数, 学习率
 
     #使用“ADAM”进行参数优化
-    optimizer = torch.optim.Adam(net.parameters(), lr=0.0003) # 传入 net 的所有参数, 学习率
+    optimizer = torch.optim.Adam(net.parameters(), lr=0.0001) # 传入 net 的所有参数, 学习率
 
     #定义损失函数，计算均方差
     #loss_func = torch.nn.MSELoss()      # 预测值和真实值的误差计算公式 (均方差)
@@ -267,12 +186,12 @@ if __name__ == '__main__':
 
     #----------------具体训练过程-----------------
 
-    for epoch in range(2):
+    for epoch in range(1):
         for step, (batch_x, batch_y) in enumerate(loader):
 
             prediction = net( batch_x.cuda() )     # input x and predict based on x
 
-            loss = 1000*loss_func(prediction, batch_y.cuda())     # must be (1. nn output, 2. target)
+            loss = loss_func(prediction, batch_y.cuda())     # must be (1. nn output, 2. target)
 
             print ("loss")
             print (loss)
@@ -285,79 +204,67 @@ if __name__ == '__main__':
 
             print ('Epoch: ', epoch, '| Step: ', step, '| batch x: ', batch_x.numpy(), '| betch y: ', batch_y.numpy())
 
-            ##计算误差百分数,并储存在data_plot当中
-            #if t % 5 == 0:
-            #    percent = 100*(prediction - batch_y.cuda())/batch_y.cuda()
-
-            #    print ("percent")
-            #    print (percent)
-
             #计算误差百分数,并储存在data_plot当中
            
             percent = 100*(prediction - batch_y.cuda())/batch_y.cuda()
 
+            data_plot[step,:] = percent[0,:] # 取precent矩阵的第一行
+
+            print("data_plot")
+            print(data_plot)
+
             print ("percent")
             print (percent)
-
-                #data_plot[t,:] = percent
-
-                #print("prediction")
-                #print(prediction)
-
+               
             #print("\n\nprediction")
             #print(prediction)
 
-            #print("\nactually")
-            #print(y[:,t])
+    #计算3个输出的平均值（把每列加起来）
 
-            #print("\nprediction - actually")
-            #print(prediction - y[:,t])
+    #将数据从tensor转化成numpy
+    data_plot_numpy = data_plot.detach().numpy()
 
-            #print("\npercent")
-            #print(percent)
+    #print("data_plot_numpy")
+    #print(data_plot_numpy[1900:2000,:])
 
-    ##计算3个输出的平均值（把每列加起来）
+    print("data_plot_numpy转置")
+    print(data_plot_numpy.T[:,1900:2000])
 
-    ##将数据从tensor转化成numpy
-    #data_plot_numpy = data_plot.detach().numpy()
+    #取每个元素的绝对值
+    data_plot_numpy_abs = np.abs(data_plot_numpy.T) #需要进行转置才能得到相关数据
 
-    ##print("data_plot_numpy")
-    ##print(data_plot_numpy[1:20,:])
-    ##print(data_plot_numpy.shape)
+    print("data_plot_numpy_abs")
+    print(data_plot_numpy_abs[ :,1900:2000])
+    print(data_plot_numpy_abs.shape)
 
-    ##print("data_plot_numpy转置")
-    ##print(data_plot_numpy.T[:,1:20])
-    ##print(data_plot_numpy.T.shape)
+    #调用sum函数，将每列数据加起来，求误差的平均数
+    average = np.sum(data_plot_numpy_abs, axis=0)/3 #要除3，表示加起来求平均
 
+    print("average")
+    print(average[6000:6100])
+    print(average.shape)
 
-    ##取每个元素的绝对值
-    #data_plot_numpy_abs = np.abs(data_plot_numpy.T) #需要进行转置才能得到相关数据
+    print("average排序")
+    print(np.argsort(average[6000:6100]))
+   
+    #将误差平均值可视化
+    X = np.linspace(1, 15000, 15000, endpoint=True)
 
-    ##调用sum函数，将每列数据加起来，求误差的平均数
-    #average = np.sum(data_plot_numpy_abs, axis=0)/3 #要除3，表示加起来求平均
+    plt.xlim(0, 7500)#设置XY轴的显示范围
+    #plt.ylim(0, 50)
 
-    ##print("\naverage")
-    ##print(average)
+    plt.plot(X,average)
+    plt.show()
 
+    ##将X、Y、Z误差可视化
+    #for num in range (0,7):
+    #    X = np.linspace(1, times, times, endpoint=True)
+    #    plt.plot(X,data_plot[:,num].detach().numpy())
 
-    ##将误差平均值可视化
-    #X = np.linspace(1, times, times, endpoint=True)
+    #    #plt.xlim(1, times)#设置XY轴的显示范围
+    #    #plt.ylim(0, 100)
 
-    ##plt.xlim(times-200, times)#设置XY轴的显示范围
-    ##plt.ylim(0, 100)
-
-    #plt.plot(X,average)
-    #plt.show()
-
-    ###将X、Y、Z误差可视化
-    ##for num in range (0,7):
-    ##    X = np.linspace(1, times, times, endpoint=True)
-    ##    plt.plot(X,data_plot[:,num].detach().numpy())
-
-    ##    #plt.xlim(1, times)#设置XY轴的显示范围
-    ##    #plt.ylim(0, 100)
-
-    ##    plt.show()
+    #    plt.show()
 
     ##----------------将loss函数可视化-----------------
 
